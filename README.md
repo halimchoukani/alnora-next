@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ALNORA Fine Jewelry — Next.js & Appwrite
+
+A high-jewelry e-commerce application cloned and modernized into **Next.js (App Router)** with **Tailwind CSS v4** and a full backend powered by **Appwrite**.
+
+## Architecture & Features
+
+- **Next.js 16 App Router**: Server and client components, optimized image handling, dynamic routing (`/shop`, `/product/[slug]`, `/cart`, `/account`, `/admin`, `/maison`).
+- **Design & Style**: Cormorant Garamond (display) & Jost (sans) typography, warm ivory and espresso luxury palette, luxury action buttons (`btn-luxe`, `btn-outline-luxe`, `eyebrow`), sticky navigation with responsive mobile slide-out drawer.
+- **Backend & Appwrite Integration**:
+  - **Authentication**: Appwrite Account integration with email/password login, register, and role management.
+  - **Catalog & Products**: Appwrite Databases collection `products` with category filtering (`rings`, `bracelets`, `necklaces`), slug lookups, and inventory tracking.
+  - **Shopping Bag**: Guest storage in `localStorage` (`alnora-cart-v2`) with automatic merge into Appwrite `cart_items` upon user authentication.
+  - **Checkout & Orders**: Atomic order processing decrements inventory, creates order items in `order_items`, and archives order in `orders`.
+  - **Store Admin**: Product catalog management (create, update, delete, visibility toggle) and live order status tracker (`pending`, `processing`, `shipped`, `delivered`, `cancelled`).
+  - **Graceful Fallback**: If Appwrite environment variables are not yet configured, the app runs smoothly with local storage and built-in jewelry seeds.
+
+---
+
+## Appwrite Collections Structure
+
+Database ID: `alnora_db` (or configurable in `.env.local`)
+
+1. **`products`**:
+   - `slug` (String, required)
+   - `name` (String, required)
+   - `collection` (String)
+   - `category` (String: `rings` | `bracelets` | `necklaces`)
+   - `price` (Float, required)
+   - `image_url` (String)
+   - `description` (String)
+   - `material` (String)
+   - `stock` (Integer, required)
+   - `is_active` (Boolean, required)
+
+2. **`profiles`**:
+   - `full_name` (String)
+   - `phone` (String)
+   - `address_line` (String)
+   - `city` (String)
+   - `postal_code` (String)
+   - `country` (String)
+
+3. **`cart_items`**:
+   - `user_id` (String, required)
+   - `product_id` (String, required)
+   - `quantity` (Integer, required)
+
+4. **`orders`**:
+   - `user_id` (String, required)
+   - `status` (String: `pending` | `processing` | `shipped` | `delivered` | `cancelled`)
+   - `total` (Float, required)
+   - `full_name` (String)
+   - `phone` (String)
+   - `address_line` (String)
+   - `city` (String)
+   - `postal_code` (String)
+   - `country` (String)
+
+5. **`order_items`**:
+   - `order_id` (String, required)
+   - `product_id` (String, required)
+   - `product_name` (String, required)
+   - `unit_price` (Float, required)
+   - `quantity` (Integer, required)
+
+---
 
 ## Getting Started
 
-First, run the development server:
-
+### 1. Configure Environment Variables
+Copy `.env.example` to `.env.local`:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
+```
+Add your Appwrite Project ID and Server API Key:
+```env
+NEXT_PUBLIC_APPWRITE_ENDPOINT="https://cloud.appwrite.io/v1"
+NEXT_PUBLIC_APPWRITE_PROJECT_ID="your_project_id"
+NEXT_PUBLIC_APPWRITE_DATABASE_ID="alnora_db"
+APPWRITE_API_KEY="your_secret_api_key"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Initialize Appwrite Collections & Catalog
+Run the automated schema and seed script:
+```bash
+npm run setup:appwrite
+```
+*(Or click **"Sync Appwrite Schema"** in the Store Admin panel at `/admin`)*
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 3. Run Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
