@@ -267,10 +267,13 @@ export async function getCartStore(userId: string): Promise<{ productId: string;
         appwriteConfig.collections.cart,
         [Query.equal("user_id", userId)]
       );
-      return res.documents.map((d: any) => ({
-        productId: d.product_id,
-        qty: Number(d.quantity),
-      }));
+      // Merge duplicate product entries
+      const merged: Record<string, number> = {};
+      for (const d of res.documents) {
+        const pid = d.product_id;
+        merged[pid] = (merged[pid] || 0) + Number(d.quantity);
+      }
+      return Object.entries(merged).map(([productId, qty]) => ({ productId, qty }));
     } catch (err) {
       console.warn("Appwrite cart fetch error:", err);
     }
@@ -287,6 +290,16 @@ export async function saveCartItemStore(userId: string, productId: string, qty: 
         appwriteConfig.collections.cart,
         [Query.equal("user_id", userId), Query.equal("product_id", productId)]
       );
+      // Clean up duplicates: keep only the first, delete the rest
+      if (existing.documents.length > 1) {
+        for (let i = 1; i < existing.documents.length; i++) {
+          await admin.databases.deleteDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.collections.cart,
+            existing.documents[i].$id
+          );
+        }
+      }
       if (qty <= 0) {
         if (existing.documents.length > 0) {
           await admin.databases.deleteDocument(
@@ -331,7 +344,14 @@ export async function saveCartItemStore(userId: string, productId: string, qty: 
   }
 }
 
-export async function placeOrderStore(userId: string): Promise<{ orderId: string }> {
+export async function placeOrderStore(userId: string, shipping?: {
+  full_name: string;
+  phone: string;
+  address_line: string;
+  city: string;
+  postal_code: string;
+  country: string;
+}): Promise<{ orderId: string }> {
   const products = await getProductsStore(true);
   const cart = await getCartStore(userId);
 
@@ -352,7 +372,8 @@ export async function placeOrderStore(userId: string): Promise<{ orderId: string
     total += p.price * item.qty;
   }
 
-  const profile = (await getProfileStore(userId)) || {
+  // Use shipping address from checkout, fallback to profile
+  const profile = shipping || (await getProfileStore(userId)) || {
     id: userId,
     full_name: "",
     phone: "",
@@ -469,7 +490,7 @@ export async function getOrdersStore(userId?: string): Promise<Order[]> {
   if (admin) {
     try {
       const queries = userId
-        ? [Query.equal("$id", userId), Query.orderDesc("$createdAt")]
+        ? [Query.equal("user_id", userId), Query.orderDesc("$createdAt")]
         : [Query.orderDesc("$createdAt")];
 
       const res = await admin.databases.listDocuments(

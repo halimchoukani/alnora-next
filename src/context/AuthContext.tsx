@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { getAppwriteClient } from "@/lib/appwrite/client";
 import { Profile } from "@/lib/types";
-import { ID } from "appwrite";
+import { ID, OAuthProvider } from "appwrite";
 
 export interface User {
   id: string;
@@ -18,6 +18,7 @@ interface AuthContextType {
   ready: boolean;
   signIn: (email: string, pass: string) => Promise<{ error?: string }>;
   signUp: (email: string, pass: string, name: string) => Promise<{ error?: string }>;
+  signInWithGoogle: (redirectPath?: string) => void;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<{ error?: string }>;
   reloadProfile: () => Promise<void>;
@@ -173,6 +174,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {};
   };
 
+  const signInWithGoogle = (redirectPath?: string) => {
+    const { account, isConfigured } = getAppwriteClient();
+    if (!isConfigured || !account) {
+      console.warn("Appwrite not configured — Google sign-in unavailable");
+      return;
+    }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const successUrl = `${origin}${redirectPath || "/account"}`;
+    const failureUrl = `${origin}/auth`;
+    account.createOAuth2Session(OAuthProvider.Google, successUrl, failureUrl);
+  };
+
   const signOut = async () => {
     const { account, isConfigured } = getAppwriteClient();
     if (isConfigured && account) {
@@ -220,6 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ready,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
         updateProfile,
         reloadProfile,

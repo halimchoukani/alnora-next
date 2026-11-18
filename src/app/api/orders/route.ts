@@ -15,11 +15,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userId } = body;
+    const { userId, shipping } = body;
     if (!userId) {
       return NextResponse.json({ error: "Sign in required to place order" }, { status: 401 });
     }
-    const result = await placeOrderStore(userId);
+    const result = await placeOrderStore(userId, shipping);
     return NextResponse.json(result, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to place order" }, { status: 400 });
